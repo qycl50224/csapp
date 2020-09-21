@@ -220,8 +220,12 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  int a = !!x;
-
+  int a = 0xFF;
+  a = a | (a << 8);
+  a = a | (a << 8);
+  a = a | (a << 8);
+  a = a | (a << 8);
+  x = !x+a;
   return (x&y)+((~x)&z);
 }
 /* 
