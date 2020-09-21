@@ -191,7 +191,7 @@ int allOddBits(int x) {
  *   Rating: 2;
  */
 int negate(int x) {
-  return 2;
+  return (~x)+1;
 }
 //3
 /* 
@@ -204,7 +204,13 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int a = !(x&0x8);
+  int b = !(x&0x2);
+  int c = !(x&0x4);
+  int d = !((x>>4)^0x3);
+
+
+  return d&((a|b)&(a|c));
 }
 /* 
  * conditional - same as x ? y : z 
@@ -214,7 +220,9 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  int a = !!x;
+
+  return (x&y)+((~x)&z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
