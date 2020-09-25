@@ -237,10 +237,10 @@ int conditional(int x, int y, int z) {
  */
 int isLessOrEqual(int x, int y) {
   // two conditions
-  // x and y have the same sign, if  x + (-y) sign == 1 which means still negative then return 1
+  // x and y have the same sign, if  y + (-x) sign == 0 which means still positive then return 1
   int nx = ~x + 1;
   int signx = (x >> 31) & 1;
-  int signy = (y >> 31) & 1;
+  int signy = (y >> 31) & 1; // & 1 is also make sure that no overflow
   int yMinusX = y + nx;
   int cond1 = (!(signx ^ signy)) & (!((yMinusX >> 31) & 1));
   // x and y have different sign, if x < 0 then return 1
@@ -257,7 +257,11 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+
+  // if zero return 0
+  // else return 1
+  // just check if its 0 by check x and -x's sign same or not
+  return ((x|(~x+1))>>31)+1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
