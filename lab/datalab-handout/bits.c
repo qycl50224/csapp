@@ -312,7 +312,13 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  int exp = (uf&0x7f800000)>>23;
+  int sign = uf & (1 << 31);
+  if (exp==0) return uf<<1|sign;
+  if (exp==255) return uf; // argument is NaN
+  exp++;   // which means * 2
+  if(exp==255) return 0x7f800000|sign;    
+  return (exp<<23)|(uf&0x807fffff);   // uf & 0x807fffff save sign bit and float bit
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
