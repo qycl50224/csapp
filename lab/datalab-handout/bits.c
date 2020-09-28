@@ -317,7 +317,7 @@ unsigned floatScale2(unsigned uf) {
   if (exp==0) return uf<<1|sign;
   if (exp==255) return uf; // argument is NaN
   exp++;   // which means * 2
-  if(exp==255) return 0x7f800000|sign;    
+  if (exp==255) return 0x7f800000|sign;    
   return (exp<<23)|(uf&0x807fffff);   // uf & 0x807fffff save sign bit and float bit
 }
 /* 
@@ -333,7 +333,22 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  int sign = uf >> 31;
+  int E = ((uf&0x7f800000)>>23)-127;
+  int frac = (uf&0x007fffff)|0x00800000;
+
+  if (!(uf&0x7fffffff)) return 0;        // float  == 0.0
+
+  if (E>31) return 0x80000000u;          // max integer = 2^31
+  if (E<0) return 0;
+
+  if (E>23) frac <<= (E-23);             // M * 2^E, why 23? because float bits has 23 bits which
+  else frac >>= (23-E);                  // can be M = 2^23 
+
+  if (!((frac>>31)^sign)) return frac;   // check overflow by checking sign's difference
+  else if (frac>>31) return 0x80000000u; // positive
+  else return ~frac+1;                   // negative
+
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
