@@ -489,22 +489,22 @@ Disassembly of section .text:
   4010a8:	48 83 f8 06          	cmp    $0x6,%rax         rax != 6 then recursive until
   4010ac:	75 dd                	jne    40108b <phase_5+0x29>    rax == 6
   4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp)       
-  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi
-  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi
-  4010bd:	e8 76 02 00 00       	callq  401338 <strings_not_equal>
+  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi             param 2
+  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi            param 1
+  4010bd:	e8 76 02 00 00       	callq  401338 <strings_not_equal>   check answer
   4010c2:	85 c0                	test   %eax,%eax
   4010c4:	74 13                	je     4010d9 <phase_5+0x77>    eax == 0 then jump
   4010c6:	e8 6f 03 00 00       	callq  40143a <explode_bomb>    else  bomb 
-  4010cb:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+  4010cb:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)        just for aligning
   4010d0:	eb 07                	jmp    4010d9 <phase_5+0x77>
   4010d2:	b8 00 00 00 00       	mov    $0x0,%eax
   4010d7:	eb b2                	jmp    40108b <phase_5+0x29>
   4010d9:	48 8b 44 24 18       	mov    0x18(%rsp),%rax
-  4010de:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax
+  4010de:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax     // xor can make ZF == 0 
   4010e5:	00 00 
-  4010e7:	74 05                	je     4010ee <phase_5+0x8c>
-  4010e9:	e8 42 fa ff ff       	callq  400b30 <__stack_chk_fail@plt>
-  4010ee:	48 83 c4 20          	add    $0x20,%rsp
+  4010e7:	74 05                	je     4010ee <phase_5+0x8c>   if rax == %fs:0x28 then jump
+  4010e9:	e8 42 fa ff ff       	callq  400b30 <__stack_chk_fail@plt> else call stack check
+  4010ee:	48 83 c4 20          	add    $0x20,%rsp      retrive stack pointer 
   4010f2:	5b                   	pop    %rbx
   4010f3:	c3                   	retq   
 
@@ -520,38 +520,38 @@ Disassembly of section .text:
   401106:	e8 51 03 00 00       	callq  40145c <read_six_numbers>
   40110b:	49 89 e6             	mov    %rsp,%r14
   40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d
-  401114:	4c 89 ed             	mov    %r13,%rbp
+  401114:	4c 89 ed             	mov    %r13,%rbp  
   401117:	41 8b 45 00          	mov    0x0(%r13),%eax
   40111b:	83 e8 01             	sub    $0x1,%eax
-  40111e:	83 f8 05             	cmp    $0x5,%eax
+  40111e:	83 f8 05             	cmp    $0x5,%eax              %eax <= 5 so ((%r13) <= 6
   401121:	76 05                	jbe    401128 <phase_6+0x34>
-  401123:	e8 12 03 00 00       	callq  40143a <explode_bomb>
-  401128:	41 83 c4 01          	add    $0x1,%r12d
-  40112c:	41 83 fc 06          	cmp    $0x6,%r12d
-  401130:	74 21                	je     401153 <phase_6+0x5f>
-  401132:	44 89 e3             	mov    %r12d,%ebx
-  401135:	48 63 c3             	movslq %ebx,%rax
-  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax
-  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)
-  40113e:	75 05                	jne    401145 <phase_6+0x51>
-  401140:	e8 f5 02 00 00       	callq  40143a <explode_bomb>
-  401145:	83 c3 01             	add    $0x1,%ebx
+  401123:	e8 12 03 00 00       	callq  40143a <explode_bomb>  >5 bomb
+  401128:	41 83 c4 01          	add    $0x1,%r12d       //  counter
+  40112c:	41 83 fc 06          	cmp    $0x6,%r12d       // the sixth then jump
+  401130:	74 21                	je     401153 <phase_6+0x5f>  
+  401132:	44 89 e3             	mov    %r12d,%ebx       ebx == counter
+  401135:	48 63 c3             	movslq %ebx,%rax                 <-->
+  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax   use next input number
+  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)      compare all after x with x
+  40113e:	75 05                	jne    401145 <phase_6+0x51>     couldn't be same
+  401140:	e8 f5 02 00 00       	callq  40143a <explode_bomb>     eax == (%rbp) then bomb
+  401145:	83 c3 01             	add    $0x1,%ebx      ebx = counter + 1
   401148:	83 fb 05             	cmp    $0x5,%ebx
-  40114b:	7e e8                	jle    401135 <phase_6+0x41>
-  40114d:	49 83 c5 04          	add    $0x4,%r13
-  401151:	eb c1                	jmp    401114 <phase_6+0x20>
-  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
-  401158:	4c 89 f0             	mov    %r14,%rax
-  40115b:	b9 07 00 00 00       	mov    $0x7,%ecx
-  401160:	89 ca                	mov    %ecx,%edx
-  401162:	2b 10                	sub    (%rax),%edx
-  401164:	89 10                	mov    %edx,(%rax)
+  40114b:	7e e8                	jle    401135 <phase_6+0x41>     <--> %ebx > 5
+  40114d:	49 83 c5 04          	add    $0x4,%r13      r13->the next input
+  401151:	eb c1                	jmp    401114 <phase_6+0x20>    start next number
+  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi    
+  401158:	4c 89 f0             	mov    %r14,%rax    r14 == rsp   so rax == 0x00000001
+  40115b:	b9 07 00 00 00       	mov    $0x7,%ecx   %rcx from 0 to 0x7
+  401160:	89 ca                	mov    %ecx,%edx     rdx from 0x00000006 to 0x7
+  401162:	2b 10                	sub    (%rax),%edx    edx =  0x7 - 0x1 = 0x6
+  401164:	89 10                	mov    %edx,(%rax)   input1 = 7 - input1
   401166:	48 83 c0 04          	add    $0x4,%rax
   40116a:	48 39 f0             	cmp    %rsi,%rax
-  40116d:	75 f1                	jne    401160 <phase_6+0x6c>
+  40116d:	75 f1                	jne    401160 <phase_6+0x6c>   if rsi == rax then go next
   40116f:	be 00 00 00 00       	mov    $0x0,%esi
-  401174:	eb 21                	jmp    401197 <phase_6+0xa3>
-  401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx
+  401174:	eb 21                	jmp    401197 <phase_6+0xa3>   
+  401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx            <---find node->
   40117a:	83 c0 01             	add    $0x1,%eax
   40117d:	39 c8                	cmp    %ecx,%eax
   40117f:	75 f5                	jne    401176 <phase_6+0x82>
@@ -560,19 +560,19 @@ Disassembly of section .text:
   401188:	48 89 54 74 20       	mov    %rdx,0x20(%rsp,%rsi,2)
   40118d:	48 83 c6 04          	add    $0x4,%rsi
   401191:	48 83 fe 18          	cmp    $0x18,%rsi
-  401195:	74 14                	je     4011ab <phase_6+0xb7>
-  401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx
+  401195:	74 14                	je     4011ab <phase_6+0xb7>   rsi == 0x18 then jump
+  401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx      rcx = 6
   40119a:	83 f9 01             	cmp    $0x1,%ecx
-  40119d:	7e e4                	jle    401183 <phase_6+0x8f>
+  40119d:	7e e4                	jle    401183 <phase_6+0x8f>   ecx <= 1 then jump
   40119f:	b8 01 00 00 00       	mov    $0x1,%eax
   4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx
-  4011a9:	eb cb                	jmp    401176 <phase_6+0x82>
-  4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx
-  4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax
-  4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi
-  4011ba:	48 89 d9             	mov    %rbx,%rcx
-  4011bd:	48 8b 10             	mov    (%rax),%rdx
-  4011c0:	48 89 51 08          	mov    %rdx,0x8(%rcx)
+  4011a9:	eb cb                	jmp    401176 <phase_6+0x82>   <---find node-->
+  4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx    (rbx) = 0x1bb
+  4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax    (rax) = 0x1dd
+  4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi    rsi = 
+  4011ba:	48 89 d9             	mov    %rbx,%rcx           rcx = 0x603320
+  4011bd:	48 8b 10             	mov    (%rax),%rdx      rdx = 0x1dd
+  4011c0:	48 89 51 08          	mov    %rdx,0x8(%rcx)    
   4011c4:	48 83 c0 08          	add    $0x8,%rax
   4011c8:	48 39 f0             	cmp    %rsi,%rax
   4011cb:	74 05                	je     4011d2 <phase_6+0xde>
@@ -580,15 +580,15 @@ Disassembly of section .text:
   4011d0:	eb eb                	jmp    4011bd <phase_6+0xc9>
   4011d2:	48 c7 42 08 00 00 00 	movq   $0x0,0x8(%rdx)
   4011d9:	00 
-  4011da:	bd 05 00 00 00       	mov    $0x5,%ebp
+  4011da:	bd 05 00 00 00       	mov    $0x5,%ebp    ebp=5     while for 5 times
   4011df:	48 8b 43 08          	mov    0x8(%rbx),%rax
   4011e3:	8b 00                	mov    (%rax),%eax
   4011e5:	39 03                	cmp    %eax,(%rbx)
-  4011e7:	7d 05                	jge    4011ee <phase_6+0xfa>
+  4011e7:	7d 05                	jge    4011ee <phase_6+0xfa>   (%rbx) < %eax then bomb
   4011e9:	e8 4c 02 00 00       	callq  40143a <explode_bomb>
   4011ee:	48 8b 5b 08          	mov    0x8(%rbx),%rbx
   4011f2:	83 ed 01             	sub    $0x1,%ebp
-  4011f5:	75 e8                	jne    4011df <phase_6+0xeb>
+  4011f5:	75 e8                	jne    4011df <phase_6+0xeb>  %ebp == 0 then go ahead
   4011f7:	48 83 c4 50          	add    $0x50,%rsp
   4011fb:	5b                   	pop    %rbx
   4011fc:	5d                   	pop    %rbp
