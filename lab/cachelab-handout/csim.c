@@ -76,11 +76,6 @@ int sameTag(int realTag, int tag)
 	return realTag == tag;
 }
 
-// void loadData(unsigned t, int S, struct cache_line[][] cache)
-// {
-	
-// }
-
 
 struct cache_line {
 	int valid;
@@ -88,8 +83,44 @@ struct cache_line {
 	time_t time;
 };
 
+void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
+{
+	int e;
+	int flag = 0;
+	int haveEmpty = 0;
+	for (e = 0; e < E; e++) {
+		if(cache[S-1][e].valid == 0)
+		{
+			haveEmpty = 1;
+		}
+		if(cache[S-1][e].valid == 1 && cache[S-1][e].tag == t)
+		{
+			flag = 1;
+			hits++;
+			printf("hits\n");
+		}
+	}
+	if(flag == 0)
+	{
+		misses++;
+		printf("miss\n");
+	}
+	if(haveEmpty == 1)
+	{
+		printf("have empty\n");
+	}
+	printf("%ls\n", hits);
+}
+
 int main(int argc, char** argv) 
 {
+	int * hits;
+	int * misses;
+	int * eviction;
+	hits = 0;
+	printf("hhhhits %d\n", *hits);
+	misses = 0;
+	eviction = 0; 
 	int s,E,opt,S,b,t;
 	char * file = NULL;
 	while(-1 != (opt = getopt(argc, argv, "s:E:b:t:")))
@@ -139,12 +170,12 @@ int main(int argc, char** argv)
 		if(identifier == 'L')
 		{
 
-			printf("set = %d\n", sbits);
-			printf("tag bit = %d\n", tbits);
+			// printf("set = %d\n", sbits);
+			// printf("tag bit = %d\n", tbits);
 			// printf("identifier = %c\n", identifier);
 			// printf("address %lx\n", address);
 			// printf("size %d\n", size);
-			// loadData(address);
+			loadData(E, tbits, sbits, cache, address, hits, misses, eviction );
 		} else if(identifier == 'S')
 		{
 
@@ -156,7 +187,7 @@ int main(int argc, char** argv)
 		}
 	}
 	fclose(pFile);
-
-	printSummary(0, 0, 0);
+	// int hit = &hits;
+	// printSummary(hit, misses, eviction);
     return 0;
 }
