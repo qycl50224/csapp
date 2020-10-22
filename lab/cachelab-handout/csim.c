@@ -91,7 +91,7 @@ void loadOrStore(int E, unsigned t, int S, struct cache_line cache[S][E], unsign
 }
 
 
-
+// modify = load + store
 void modifyData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
 {
 	loadOrStore(E,t,S,cache, address, hits, misses, eviction);
