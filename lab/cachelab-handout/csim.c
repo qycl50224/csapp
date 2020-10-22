@@ -34,13 +34,13 @@ struct cache_line {
 	int time;
 };
 
-void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
+void loadOrStore(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
 {
 	int e;
-	int flag = 0;
-	int haveEmpty = 0;
+	int flag = 0; // check if hit
+	int haveEmpty = 0; // check is there any line with valid=0
 	for (e = 0; e < E; e++) {
-		cache[S][e].time++;
+		cache[S][e].time++;     // update every line's time
 		if(cache[S][e].valid == 0)
 		{
 			haveEmpty = 1;
@@ -52,8 +52,6 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 			++*hits;
 			printf("hit\n");
 		}
-
-		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
 	}
 	if(flag == 0)
 	{
@@ -90,72 +88,14 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 			cache[S][target].time = 0;
 		}	
 	}
-	// printf("hits:%d misses:%d eviction:%d \n", *hits, *misses, *eviction);
 }
 
-void storeData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
-{
-	int e;
-	int flag = 0;
-	int haveEmpty = 0;
-	for (e = 0; e < E; e++) {
-		cache[S][e].time++;
-		if(cache[S][e].valid == 0)
-		{
-			haveEmpty = 1;
-		}
-		if(cache[S][e].valid == 1 && cache[S][e].tag == t)
-		{
-			cache[S][e].time = 0;
-			flag = 1;
-			++*hits;
-			printf("hit\n");
-		}
 
-		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
-	}
-	if(flag == 0)
-	{
-		++*misses;
-		printf("miss\n");
-		if (haveEmpty == 1)
-		{
-			for (e = 0; e < E; e++)
-			{
-				if (cache[S][e].valid == 0)
-				{
-					cache[S][e].valid = 1;
-					cache[S][e].tag = t;
-					cache[S][e].time = 0;	
-					return;
-				}
-			}
-		} else {
-			++*eviction;
-			printf("eviction\n");
-			double max = 0;
-			int target = 0;
-			for (e = 0; e < E; e++)
-			{
-				int time = cache[S][e].time;
-				if (time > max)
-				{
-					max = time;
-					printf("%f\n", max);
-					target = e;
-				}
-			}
-			cache[S][target].tag = t;
-			cache[S][target].time = 0;
-		}	
-	}
-	// printf("hits:%d misses:%d eviction:%d \n", *hits, *misses, *eviction);
-}
 
 void modifyData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
 {
-	loadData(E,t,S,cache, address, hits, misses, eviction);
-	storeData(E,t,S,cache, address, hits, misses, eviction);
+	loadOrStore(E,t,S,cache, address, hits, misses, eviction);
+	loadOrStore(E,t,S,cache, address, hits, misses, eviction);
 	return;
 }
 
@@ -201,10 +141,8 @@ int main(int argc, char** argv)
 
 	S = calcS(s);
 	t = m - (s + b);
-	printf("t=%d\n", t);
-	printf("S=%d\n", S);
-
-
+	// printf("t=%d\n", t);
+	// printf("S=%d\n", S);
 	struct cache_line cache[S][E];
 	int setCount;
 	int eCount;
@@ -216,6 +154,7 @@ int main(int argc, char** argv)
 			cache[setCount][eCount].time = 0;
 		}
 	}
+
 	FILE * pFile;
 	pFile = fopen(file, "r");
 
@@ -231,7 +170,7 @@ int main(int argc, char** argv)
 		// printf("sbits  %x\n", sbits );
 		unsigned tbits = gett(address, b, s);
 		// printf("tagbits  %d\n", tbits);
-		printf("Instruction %c address %lx  sbits %d\n", identifier, address, sbits);
+		// printf("Instruction %c address %lx  sbits %d\n", identifier, address, sbits);
 		if(identifier == 'L')
 		{
 
@@ -239,11 +178,11 @@ int main(int argc, char** argv)
 			// printf("tag bit = %d\n", tbits);
 			// printf("identifier = %c\n", identifier);
 			// printf("size %d\n", size);
-			loadData(E, tbits, sbits, cache, address, hits, misses, eviction );
+			loadOrStore(E, tbits, sbits, cache, address, hits, misses, eviction);
 		} else if(identifier == 'S')
 		{
 
-			storeData(E, tbits, sbits, cache, address, hits, misses, eviction);
+			loadOrStore(E, tbits, sbits, cache, address, hits, misses, eviction);
 		} else if(identifier == 'M'){
 			modifyData(E, tbits, sbits, cache, address, hits, misses, eviction);
 		} else {
