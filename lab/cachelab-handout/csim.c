@@ -50,7 +50,7 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 			flag = 1;
 			++*hits;
 			printf("hit\n");
-			
+			return;
 		}
 		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
 	}
@@ -67,6 +67,7 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 					cache[S][e].valid = 1;
 					cache[S][e].tag = t;
 					cache[S][e].time = time(0);	
+					return;
 				}
 			}
 		} else {
@@ -76,9 +77,10 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 			int target = 0;
 			for (e = 0; e < E; e++)
 			{
-				if (difftime(cache[S][e].time, time(0))> max)
+				if (difftime(time(0), cache[S][e].time)> max)
 				{
-					max = difftime(cache[S][e].time, time(0));
+					max = difftime(time(0), cache[S][e].time);
+					printf("%f\n", max);
 					target = e;
 				}
 			}
@@ -101,11 +103,12 @@ void storeData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned
 		}
 		if(cache[S][e].valid == 1 && cache[S][e].tag == t)
 		{
-			cache[S][e].time = time(0);
+			// cache[S][e].time = time(0);
+			cache[S][e].valid = 1;
 			flag = 1;
 			++*hits;
 			printf("hit\n");
-			
+			return;
 		}
 		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
 	}
@@ -122,6 +125,7 @@ void storeData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned
 					cache[S][e].valid = 1;
 					cache[S][e].tag = t;
 					cache[S][e].time = time(0);	
+					return;
 				}
 			}
 		} else {
@@ -131,13 +135,14 @@ void storeData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned
 			int target = 0;
 			for (e = 0; e < E; e++)
 			{
-				if (difftime(cache[S][e].time, time(0))> max)
+				if (difftime(time(0),cache[S][e].time)> max)
 				{
-					max = difftime(cache[S][e].time, time(0));
+					max = difftime(time(0),cache[S][e].time);
 					target = e;
 				}
 			}
 			cache[S][target].tag = t;
+			cache[S][target].valid = 1;
 			cache[S][target].time = time(0);
 		}	
 	}
