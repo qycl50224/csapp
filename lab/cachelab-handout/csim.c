@@ -8,33 +8,6 @@
 // author:qycl50224
 #define m 64
 
-// address = 64 bits, so m = 64, t = m - (b + s)
-// only consider implementation of L and M and S, no I
-// use LRU(least recently used), so should track the last used time
-// input:  L 10,4 , what we should consider is the first instruction and the address
-// we should find the set which contains the address by find the block which contains the 
-// adderss
-// target:track hit, miss and eviction times 
-
-
-// read input s,E,b
-// initalize hit, miss, eviction
-// calcS,B,tagBit	
-// malloc C = S * E * (2^(b+tag+1)) byte
-// read instruction 
-//  if (instruction == 'I') jump
-//	else if (instruction == 'L')
-//		read address
-// 		calc idxOfS,t
-// 		for (E raw: S) 
-//			if (isValid && sameTag) print(hit) hit++  update access time flag = 1
-//		if (flag == 0) print(miss) miss++  
-// iterate all row in that set and
-// check valid bit and 
-// check tag bit
-// if (isValid && sameTag) 
-
-
 int calcS(int s)
 {
 	int res = 1;
@@ -45,16 +18,6 @@ int calcS(int s)
 	return res;
 }
 
-// int calcB(int b)
-// {
-// 	int res = 1;
-// 	int i;
-// 	for (i = 1; i <= b; i++) {
-// 		res *= 2;
-// 	}
-// 	return res;
-// }
-
 unsigned gett(unsigned long address, int b, int s)
 {
 	return address >> (b+s);
@@ -62,21 +25,9 @@ unsigned gett(unsigned long address, int b, int s)
 
 int getS(unsigned long address, int t, int b)
 {
-	return (((address << t) >> t) >> b) << b;
+	return ((address << t) >> t) >> b;
 }
 	
-
-int isValid(int v) 
-{
-	return v? 1:0;
-}
-
-int sameTag(int realTag, int tag)
-{
-	return realTag == tag;
-}
-
-
 struct cache_line {
 	int valid;
 	unsigned tag;
@@ -89,27 +40,115 @@ void loadData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned 
 	int flag = 0;
 	int haveEmpty = 0;
 	for (e = 0; e < E; e++) {
-		if(cache[S-1][e].valid == 0)
+		if(cache[S][e].valid == 0)
 		{
 			haveEmpty = 1;
 		}
-		if(cache[S-1][e].valid == 1 && cache[S-1][e].tag == t)
+		if(cache[S][e].valid == 1 && cache[S][e].tag == t)
 		{
+			cache[S][e].time = time(0);
 			flag = 1;
-			hits++;
-			printf("hits\n");
+			++*hits;
+			printf("hit\n");
+			
 		}
+		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
 	}
 	if(flag == 0)
 	{
-		misses++;
+		++*misses;
 		printf("miss\n");
+		if (haveEmpty == 1)
+		{
+			for (e = 0; e < E; e++)
+			{
+				if (cache[S][e].valid == 0)
+				{
+					cache[S][e].valid = 1;
+					cache[S][e].tag = t;
+					cache[S][e].time = time(0);	
+				}
+			}
+		} else {
+			++*eviction;
+			printf("eviction\n");
+			double max = 0;
+			int target = 0;
+			for (e = 0; e < E; e++)
+			{
+				if (difftime(cache[S][e].time, time(0))> max)
+				{
+					max = difftime(cache[S][e].time, time(0));
+					target = e;
+				}
+			}
+			cache[S][target].tag = t;
+			cache[S][target].time = time(0);
+		}	
 	}
-	if(haveEmpty == 1)
+	// printf("hits:%d misses:%d eviction:%d \n", *hits, *misses, *eviction);
+}
+
+void storeData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
+{
+	int e;
+	int flag = 0;
+	int haveEmpty = 0;
+	for (e = 0; e < E; e++) {
+		if(cache[S][e].valid == 0)
+		{
+			haveEmpty = 1;
+		}
+		if(cache[S][e].valid == 1 && cache[S][e].tag == t)
+		{
+			cache[S][e].time = time(0);
+			flag = 1;
+			++*hits;
+			printf("hit\n");
+			
+		}
+		// printf("cache[%d][%d].time :%ld\n",S, e, cache[S][e].time) ;
+	}
+	if(flag == 0)
 	{
-		printf("have empty\n");
+		++*misses;
+		printf("miss\n");
+		if (haveEmpty == 1)
+		{
+			for (e = 0; e < E; e++)
+			{
+				if (cache[S][e].valid == 0)
+				{
+					cache[S][e].valid = 1;
+					cache[S][e].tag = t;
+					cache[S][e].time = time(0);	
+				}
+			}
+		} else {
+			++*eviction;
+			printf("eviction\n");
+			double max = 0;
+			int target = 0;
+			for (e = 0; e < E; e++)
+			{
+				if (difftime(cache[S][e].time, time(0))> max)
+				{
+					max = difftime(cache[S][e].time, time(0));
+					target = e;
+				}
+			}
+			cache[S][target].tag = t;
+			cache[S][target].time = time(0);
+		}	
 	}
-	printf("%ls\n", hits);
+	// printf("hits:%d misses:%d eviction:%d \n", *hits, *misses, *eviction);
+}
+
+void modifyData(int E, unsigned t, int S, struct cache_line cache[S][E], unsigned long address,int * hits, int * misses, int * eviction)
+{
+	loadData(E,t,S,cache, address, hits, misses, eviction);
+	storeData(E,t,S,cache, address, hits, misses, eviction);
+	return;
 }
 
 int main(int argc, char** argv) 
@@ -117,10 +156,13 @@ int main(int argc, char** argv)
 	int * hits;
 	int * misses;
 	int * eviction;
-	hits = 0;
-	printf("hhhhits %d\n", *hits);
-	misses = 0;
-	eviction = 0; 
+	int ini1 = 0;
+	int ini2 = 0;
+	int ini3 = 0;
+	hits = &ini1;
+	misses = &ini2;
+	eviction = &ini3; 
+
 	int s,E,opt,S,b,t;
 	char * file = NULL;
 	while(-1 != (opt = getopt(argc, argv, "s:E:b:t:")))
@@ -150,12 +192,21 @@ int main(int argc, char** argv)
 
 	S = calcS(s);
 	t = m - (s + b);
+	printf("t=%d\n", t);
+	printf("S=%d\n", S);
 
 
 	struct cache_line cache[S][E];
-	cache[0][0].valid = 1;
-	printf("valid = %d\n", cache[0][0].valid);
-
+	int setCount;
+	int eCount;
+	// initialize array
+	for (setCount = 0; setCount < S; setCount++) {
+		for (eCount = 0; eCount < E; eCount++) {
+			cache[setCount][eCount].tag = 0;
+			cache[setCount][eCount].valid = 0;
+			cache[setCount][eCount].time = time(0);
+		}
+	}
 	FILE * pFile;
 	pFile = fopen(file, "r");
 
@@ -165,29 +216,32 @@ int main(int argc, char** argv)
 
 	while(fscanf(pFile, " %c %lx,%d", &identifier, &address, &size)>0)
 	{	
+
+		// printf("sbits former  %lx\n", address );
 		int sbits = getS(address, t, b);
+		// printf("sbits  %x\n", sbits );
 		unsigned tbits = gett(address, b, s);
+		// printf("tagbits  %d\n", tbits);
+		printf("Instruction %c address %lx  sbits %d\n", identifier, address, sbits);
 		if(identifier == 'L')
 		{
 
 			// printf("set = %d\n", sbits);
 			// printf("tag bit = %d\n", tbits);
 			// printf("identifier = %c\n", identifier);
-			// printf("address %lx\n", address);
 			// printf("size %d\n", size);
 			loadData(E, tbits, sbits, cache, address, hits, misses, eviction );
 		} else if(identifier == 'S')
 		{
 
-			// storeData(address);
+			storeData(E, tbits, sbits, cache, address, hits, misses, eviction);
 		} else if(identifier == 'M'){
-			// modify(address);
+			modifyData(E, tbits, sbits, cache, address, hits, misses, eviction);
 		} else {
 			continue;
 		}
 	}
 	fclose(pFile);
-	// int hit = &hits;
-	// printSummary(hit, misses, eviction);
+	printSummary(*hits, *misses, *eviction);
     return 0;
 }
