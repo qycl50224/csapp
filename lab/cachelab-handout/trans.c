@@ -24,21 +24,26 @@ char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
     int i, j, i1, j1;
-    int Block = 8;
+    int Block = 8; // block size = 1 * 8
 
-    for (i = 0; i < N; i+=Block) {
-        for (j = 0; j < M; j+=Block) {
-    		// B*B block]
-    		for (i1=i; i1<i+Block; i1++) {
-    			for (j1=j; j1<j+Block; j1++) {
+    // for (i = 0; i < N; i+=Block) {
+    //     for (j = 0; j < M; j+=Block) {
+    // 		// B*B block]
+    // 		for (i1=i; i1<i+Block; i1++) {
+    // 			for (j1=j; j1<j+Block; j1++) {
+    // 				B[j1][i1] = A[i1][j1];
+    // 			}
+    // 		}
+    //     }
+    // }    
+    
+    for (j = 0; j < M; j += Block) {
+    	for (i = 0; i < N; i += Block) {
+    		for (i1 = i; i1 < i + Block; i1++) {
+    			for (j1 = j; j1 < j + Block; j1++) {
     				B[j1][i1] = A[i1][j1];
     			}
     		}
-        }
-    }    
-    for (; i1 < N; i1++) {
-    	for (; j1 < M; j1++) {
-    		B[j1][i1] = A[i1][j1];
     	}
     }
     // printf("is transpose %d\n", is_transpose(M,N,A,B));
