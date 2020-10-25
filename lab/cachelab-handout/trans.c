@@ -23,31 +23,82 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
-    int i, j, i1, j1;
-    int Block = 8; // block size = 1 * 8
+    int i, j, i1,  tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+    if (M == 32) {
+        for (j = 0; j < M; j += 8) {
+            for (i = 0; i < N; i += 8) {
+                for (i1 = i; i1 < i + 8 && i1 < N; i1++) {
+                    // for (j1 = j; j1 < j + Block_j && j1 < M; j1++) {
+                        tmp0 = A[i1][j];
+                        tmp1 = A[i1][j+1];
+                        tmp2 = A[i1][j+2];
+                        tmp3 = A[i1][j+3];
+                        tmp4 = A[i1][j+4];
+                        tmp5 = A[i1][j+5];
+                        tmp6 = A[i1][j+6];
+                        tmp7 = A[i1][j+7];
+                        B[j][i1] = tmp0;
+                        B[j+1][i1] = tmp1;
+                        B[j+2][i1] = tmp2;
+                        B[j+3][i1] = tmp3;
+                        B[j+4][i1] = tmp4;
+                        B[j+5][i1] = tmp5;
+                        B[j+6][i1] = tmp6;
+                        B[j+7][i1] = tmp7;
 
-    // for (i = 0; i < N; i+=Block) {
-    //     for (j = 0; j < M; j+=Block) {
-    // 		// B*B block]
-    // 		for (i1=i; i1<i+Block; i1++) {
-    // 			for (j1=j; j1<j+Block; j1++) {
-    // 				B[j1][i1] = A[i1][j1];
-    // 			}
-    // 		}
-    //     }
-    // }    
-    
-    for (j = 0; j < M; j += Block) {
-    	for (i = 0; i < N; i += Block) {
-    		for (i1 = i; i1 < i + Block; i1++) {
-    			for (j1 = j; j1 < j + Block; j1++) {
-    				B[j1][i1] = A[i1][j1];
-    			}
-    		}
-    	}
-    }
-    // printf("is transpose %d\n", is_transpose(M,N,A,B));
-	    
+                        // printf("%d ", B[j1][i1]);
+                    // }
+                }
+            }
+        }
+    } else if (M == 64) {
+        for (j = 0; j < 64; j += 4) {
+            for (i = 0; i < 64; i += 4) {
+                for (i1 = i; i1 < i+4 && i1 < N; i1++) {
+                    // for (jj = j; jj < j+4 && jj < M; jj++) {
+                    tmp0 = A[i1][j];
+                    tmp1 = A[i1][j+1];
+                    tmp2 = A[i1][j+2];
+                    tmp3 = A[i1][j+3];
+
+                    B[j][i1] = tmp0;
+                    B[j+1][i1] = tmp1;
+                    B[j+2][i1] = tmp2;
+                    B[j+3][i1] = tmp3;
+                    // }
+                }
+            }
+        }   
+    } else {
+        
+        for (j = 0; j < M; j += 8) {
+            for (i = 0; i < N; i += 8) {
+                for (i1 = i; i1 < i + 8 && i1 < N; i1++) {
+                    // for (j1 = j; j1 < j + Block_j && j1 < M; j1++) {
+                        tmp0 = A[i1][j];
+                        tmp1 = A[i1][j+1];
+                        tmp2 = A[i1][j+2];
+                        tmp3 = A[i1][j+3];
+                        tmp4 = A[i1][j+4];
+                        tmp5 = A[i1][j+5];
+                        tmp6 = A[i1][j+6];
+                        tmp7 = A[i1][j+7];
+                        B[j][i1] = tmp0;
+                        B[j+1][i1] = tmp1;
+                        B[j+2][i1] = tmp2;
+                        B[j+3][i1] = tmp3;
+                        B[j+4][i1] = tmp4;
+                        B[j+5][i1] = tmp5;
+                        B[j+6][i1] = tmp6;
+                        B[j+7][i1] = tmp7;
+
+                        // printf("%d ", B[j1][i1]);
+                    // }
+                }
+            }
+        }
+        
+    }	    
 }
 
 /* 
@@ -68,9 +119,69 @@ void trans(int M, int N, int A[N][M], int B[M][N])
             B[j][i] = tmp;
         }
     }
-
-
 }
+
+char trans1_desc[] = "8*8 Block first column second row transpose";
+void trans1(int M, int N, int A[N][M], int B[M][N])
+{
+    int i, j, i1,  tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+
+    for (j = 0; j < M; j += 8) {
+        for (i = 0; i < N; i += 8) {
+            for (i1 = i; i1 < i + 8 && i1 < N; i1++) {
+                // for (j1 = j; j1 < j + Block_j && j1 < M; j1++) {
+                    tmp0 = A[i1][j];
+                    tmp1 = A[i1][j+1];
+                    tmp2 = A[i1][j+2];
+                    tmp3 = A[i1][j+3];
+                    tmp4 = A[i1][j+4];
+                    tmp5 = A[i1][j+5];
+                    tmp6 = A[i1][j+6];
+                    tmp7 = A[i1][j+7];
+                    B[j][i1] = tmp0;
+                    B[j+1][i1] = tmp1;
+                    B[j+2][i1] = tmp2;
+                    B[j+3][i1] = tmp3;
+                    B[j+4][i1] = tmp4;
+                    B[j+5][i1] = tmp5;
+                    B[j+6][i1] = tmp6;
+                    B[j+7][i1] = tmp7;
+
+                    // printf("%d ", B[j1][i1]);
+                // }
+            }
+        }
+    }
+}
+
+char trans2_desc[] = "64x64";
+void trans2(int M, int N, int A[N][M], int B[M][N])
+{
+    int i, j, ii , tmp0, tmp1, tmp2, tmp3;
+    for (j = 0; j < 64; j += 4) {
+        for (i = 0; i < 64; i += 4) {
+            for (ii = i; ii < i+4 && ii < N; ii++) {
+                // for (jj = j; jj < j+4 && jj < M; jj++) {
+                tmp0 = A[ii][j];
+                tmp1 = A[ii][j+1];
+                tmp2 = A[ii][j+2];
+                tmp3 = A[ii][j+3];
+
+                B[j][ii] = tmp0;
+                B[j+1][ii] = tmp1;
+                B[j+2][ii] = tmp2;
+                B[j+3][ii] = tmp3;
+                // }
+            }
+        }
+    }   
+
+
+        
+}
+
+
+
 
 /*
  * registerFunctions - This function registers your transpose
@@ -85,7 +196,11 @@ void registerFunctions()
     registerTransFunction(transpose_submit, transpose_submit_desc); 
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc); 
+    // registerTransFunction(trans, transpose_submit_desc); 
+
+    registerTransFunction(trans1, trans1_desc); 
+
+    registerTransFunction(trans2, trans2_desc);
 
 }
 
