@@ -165,6 +165,34 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+	char *argv[MAXARGS];
+	char buf[MAXLINE];
+	int bg;
+	pid_t pid;
+
+	strcpy(buf, cmdline);
+	bg = parseline(buf, argv);
+	if (argv[0] == NULL) return;
+	/* not a builtin cmd */
+	if (!builtin_cmd(argv)) { 
+		if ((pid = fork()) == 0) {
+			// if (do_bgfg()) {
+
+				exit(0);
+			// }
+		}
+	}
+
+	if (!bg) {
+		int status;
+		if (waitpid(pid, &status, 0) < 0)
+			unix_error("waitfg: waitpid error");
+	}
+	else 
+		printf("%d %s", pid, cmdline);
+
+
+
     return;
 }
 
@@ -230,7 +258,28 @@ int parseline(const char *cmdline, char **argv)
  *    it immediately.  
  */
 int builtin_cmd(char **argv) 
-{
+{	
+	char* cmd = argv[0];
+	if (!strcmp(cmd, "quit")) { /* strcmp return 0 if str1 == str2, else 1 */
+		exit(0);
+	}
+
+	if ((!strcmp(cmd, "fg")) || (!strcmp(cmd, "bg"))) {
+		do_bgfg(argv);
+	}
+
+	if (!strcmp(cmd, "jobs")) {
+		listjobs(jobs);
+		return 1;
+	}
+
+	// if (!strcmp(cmd, "kill")) {
+	// 	deletejob
+	// }
+
+	
+
+
     return 0;     /* not a builtin command */
 }
 
