@@ -176,10 +176,10 @@ void eval(char *cmdline)
 	/* not a builtin cmd */
 	if (!builtin_cmd(argv)) { 
 		if ((pid = fork()) == 0) {
-			// if (do_bgfg()) {
-
+			if (execve(argv[0], argv, environ) < 0) {
+				printf("%s: Command not found.\n", argv[0]);
 				exit(0);
-			// }
+			}
 		}
 	}
 
@@ -266,6 +266,7 @@ int builtin_cmd(char **argv)
 
 	if ((!strcmp(cmd, "fg")) || (!strcmp(cmd, "bg"))) {
 		do_bgfg(argv);
+		return 1;
 	}
 
 	if (!strcmp(cmd, "jobs")) {
