@@ -79,7 +79,7 @@ struct job_t *getjobjid(struct job_t *jobs, int jid);
 int pid2jid(pid_t pid); 
 void listjobs(struct job_t *jobs);
 
-void usage(void);
+void usage(void);      
 void unix_error(char *msg);
 void app_error(char *msg);
 typedef void handler_t(int);
@@ -184,12 +184,15 @@ void eval(char *cmdline)
 	}
 
 	if (!bg) {
+		addjob(jobs, pid, FG, cmdline);
 		int status;
 		if (waitpid(pid, &status, 0) < 0)
 			unix_error("waitfg: waitpid error");
+	} else {
+		addjob(jobs, pid, BG, cmdline);
+		struct job_t* job = getjobpid(jobs, pid);
+		printf("[%d] %d %s", job->jid ,pid, cmdline);
 	}
-	else 
-		printf("%d %s", pid, cmdline);
 
 
 
