@@ -78,6 +78,7 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid);
 struct job_t *getjobjid(struct job_t *jobs, int jid); 
 int pid2jid(pid_t pid); 
 void listjobs(struct job_t *jobs);
+void listbgjobs(struct job_t *jobs);
 
 void usage(void);      
 void unix_error(char *msg);
@@ -171,7 +172,7 @@ void eval(char *cmdline)
 	pid_t pid;
 
 	strcpy(buf, cmdline);
-	bg = parseline(buf, argv);
+	bg = parseline(buf, argv);  /* parseline return 1 if cmdline end with "&" else 0*/
 	if (argv[0] == NULL) return;
 	/* not a builtin cmd */
 	if (!builtin_cmd(argv)) { 
@@ -187,11 +188,13 @@ void eval(char *cmdline)
 		addjob(jobs, pid, FG, cmdline);
 		int status;
 		if (waitpid(pid, &status, 0) < 0)
-			unix_error("waitfg: waitpid error");
+			deletejob(jobs, pid);
+			return;
+			// unix_error("waitfg: waitpid error");
 	} else {
 		addjob(jobs, pid, BG, cmdline);
 		struct job_t* job = getjobpid(jobs, pid);
-		printf("[%d] %d %s", job->jid ,pid, cmdline);
+		printf("[%d] (%d) %s", job->jid ,pid, cmdline);
 	}
 
 
@@ -273,7 +276,7 @@ int builtin_cmd(char **argv)
 	}
 
 	if (!strcmp(cmd, "jobs")) {
-		listjobs(jobs);
+		listbgjobs(jobs);
 		return 1;
 	}
 
@@ -326,7 +329,15 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    return;
+	/* find groupid and check every proccess's group id */
+	pid_t pid = fgpid(jobs);
+	if (pid != 0) {
+		printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(pid), pid, SIGINT);
+		kill(pid, SIGINT);
+		deletejob(jobs, pid);
+	}
+	return;
+
 }
 
 /*
@@ -485,6 +496,30 @@ void listjobs(struct job_t *jobs)
 		case ST: 
 		    printf("Stopped ");
 		    break;
+	    default:
+		    printf("listjobs: Internal error: job[%d].state=%d ", 
+			   i, jobs[i].state);
+	    }
+	    printf("%s", jobs[i].cmdline);
+	}
+    }
+}
+
+/* listbgjobs - Print the background job list */
+void listbgjobs(struct job_t *jobs) 
+{
+    int i;
+    
+    for (i = 0; i < MAXJOBS; i++) {
+	if (jobs[i].pid != 0 && jobs[i].state != FG) {
+	    printf("[%d] (%d) ", jobs[i].jid, jobs[i].pid);
+	    switch (jobs[i].state) {
+		case BG: 
+		    printf("Running ");
+		    break;
+	    case ST: 
+	    	printf("Stopped ");
+	    break;
 	    default:
 		    printf("listjobs: Internal error: job[%d].state=%d ", 
 			   i, jobs[i].state);
