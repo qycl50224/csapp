@@ -190,6 +190,7 @@ void eval(char *cmdline)
 			int status;
 			if (waitpid(pid, &status, 0) < 0)
 				// unix_error("waitfg: waitpid error");
+			printf("asdasdasdasdasd\n");
 			deletejob(jobs, pid);
 		} else {
 			addjob(jobs, pid, BG, cmdline);
