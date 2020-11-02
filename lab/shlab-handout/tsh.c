@@ -177,25 +177,29 @@ void eval(char *cmdline)
 	/* not a builtin cmd */
 	if (!builtin_cmd(argv)) { 
 		if ((pid = fork()) == 0) {
+			// printf("pgroup = %d pid = [%d]\n", getpgrp(), pid);		
 			if (execve(argv[0], argv, environ) < 0) {
 				printf("%s: Command not found.\n", argv[0]);
 				exit(0);
 			}
 		}
-	}
-
-	if (!bg) {
-		addjob(jobs, pid, FG, cmdline);
-		int status;
-		if (waitpid(pid, &status, 0) < 0)
+		if (!bg) {
+			addjob(jobs, pid, FG, cmdline);
+			setpgid(pid, pid);
+			// printf("cmd === %s\n", cmdline);
+			int status;
+			if (waitpid(pid, &status, 0) < 0)
+				// unix_error("waitfg: waitpid error");
 			deletejob(jobs, pid);
-			return;
-			// unix_error("waitfg: waitpid error");
-	} else {
-		addjob(jobs, pid, BG, cmdline);
-		struct job_t* job = getjobpid(jobs, pid);
-		printf("[%d] (%d) %s", job->jid ,pid, cmdline);
+		} else {
+			addjob(jobs, pid, BG, cmdline);
+			setpgid(pid, pid);
+			struct job_t* job = getjobpid(jobs, pid);
+			printf("[%d] (%d) %s", job->jid ,pid, cmdline);
+		}
 	}
+	
+
 
 
 
@@ -276,7 +280,7 @@ int builtin_cmd(char **argv)
 	}
 
 	if (!strcmp(cmd, "jobs")) {
-		listbgjobs(jobs);
+		listjobs(jobs);
 		return 1;
 	}
 
@@ -331,9 +335,10 @@ void sigint_handler(int sig)
 {
 	/* find groupid and check every proccess's group id */
 	pid_t pid = fgpid(jobs);
+	printf("forground process id = %d\n", pid);
 	if (pid != 0) {
-		printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(pid), pid, SIGINT);
-		kill(pid, SIGINT);
+		printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, SIGINT);
+		kill(-pid, SIGINT);
 		deletejob(jobs, pid);
 	}
 	return;
