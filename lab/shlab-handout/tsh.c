@@ -188,9 +188,11 @@ void eval(char *cmdline)
 			setpgid(pid, pid);
 			// printf("cmd === %s\n", cmdline);
 			int status;
-			if (waitpid(pid, &status, 0) < 0)
+			// printf("===============\n");
+			if (waitpid(pid, &status, 0) < 0) {
 				// unix_error("waitfg: waitpid error");
-			printf("asdasdasdasdasd\n");
+			}
+			// printf("asdasdasdasdasd\n");
 			deletejob(jobs, pid);
 		} else {
 			addjob(jobs, pid, BG, cmdline);
@@ -324,6 +326,17 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+	int olderrno = errno;
+	pid_t pid;
+	while ((pid = waitpid(-1, NULL, 0)) > 0) {
+		printf("Handler reaped child job[%d]\n", pid2jid(pid));
+		deletejob(jobs, pid);
+	}
+	if (errno != ECHILD) {
+		printf("waitpid error");
+	}
+	sleep(1);
+	errno = olderrno;
     return;
 }
 
@@ -345,7 +358,7 @@ void sigint_handler(int sig)
 	return;
 
 }
-
+   
 /*
  * sigtstp_handler - The kernel sends a SIGTSTP to the shell whenever
  *     the user types ctrl-z at the keyboard. Catch it and suspend the
@@ -353,6 +366,12 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	pid_t pid = fgpid(jobs);
+	if (pid != 0) {
+		printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, SIGTSTP);
+		kill(-pid, SIGTSTP);
+	}
+	printf("asdasdsadasd\n");
     return;
 }
 
