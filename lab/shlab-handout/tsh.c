@@ -202,8 +202,13 @@ void eval(char *cmdline)
 			if (waitpid(pid, &status, WUNTRACED) < 0) {
 				// unix_error("waitfg: waitpid error");
 			}
+			if (WIFEXITED(status)) {
+				sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+				deletejob(jobs, pid);
+				sigprocmask(SIG_SETMASK, &prev_all, NULL);
+			}
 			// printf("asdasdasdasdasd\n");
-			deletejob(jobs, pid);
+			
 		} else {
 			sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
 			addjob(jobs, pid, BG, cmdline);
@@ -214,10 +219,6 @@ void eval(char *cmdline)
 			printf("[%d] (%d) %s", job->jid ,pid, cmdline);
 		}
 	}
-	
-
-
-
 
     return;
 }
@@ -407,7 +408,7 @@ void sigtstp_handler(int sig)
 		for (i = 0; i < MAXJOBS; i++) {
 			if (jobs[i].jid == jid) {
 				jobs[i].state = ST;
-				printf("%s\n",jobs[i].cmdline );
+				// printf("%s\n",jobs[i].cmdline );
 				break;
 			}
 		}
