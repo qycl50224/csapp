@@ -170,32 +170,45 @@ void eval(char *cmdline)
 	char buf[MAXLINE];
 	int bg;
 	pid_t pid;
+	sigset_t mask_all, prev_all, mask_one, prev_one;
+
+	sigfillset(&mask_all);
+	sigemptyset(&mask_one);
+	sigaddset(&mask_one, SIGCHLD);
 
 	strcpy(buf, cmdline);
 	bg = parseline(buf, argv);  /* parseline return 1 if cmdline end with "&" else 0*/
 	if (argv[0] == NULL) return;
 	/* not a builtin cmd */
 	if (!builtin_cmd(argv)) { 
+		sigprocmask(SIG_BLOCK, &mask_one, &prev_one); // block SIGCHLD
 		if ((pid = fork()) == 0) {
-			// printf("pgroup = %d pid = [%d]\n", getpgrp(), pid);		
+			printf("this is son pgroup = %d pid = [%d]\n", getpgrp(), getpid());		
+			sigprocmask(SIG_SETMASK, &prev_one, NULL); // unblock SIGCHLD
 			if (execve(argv[0], argv, environ) < 0) {
 				printf("%s: Command not found.\n", argv[0]);
 				exit(0);
 			}
 		}
 		if (!bg) {
+			sigprocmask(SIG_BLOCK, &mask_all, &prev_all); // block all signal when adding job
 			addjob(jobs, pid, FG, cmdline);
+			sigprocmask(SIG_SETMASK, &prev_all, NULL);
+
 			setpgid(pid, pid);
-			// printf("cmd === %s\n", cmdline);
+			// printf("forground pid = %d   pgid = %d curpid = %d ppid = %d \n", pid, pid, getpid(), getppid());
 			int status;
 			// printf("===============\n");
-			if (waitpid(pid, &status, 0) < 0) {
+			if (waitpid(pid, &status, WUNTRACED) < 0) {
 				// unix_error("waitfg: waitpid error");
 			}
 			// printf("asdasdasdasdasd\n");
 			deletejob(jobs, pid);
 		} else {
+			sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
 			addjob(jobs, pid, BG, cmdline);
+			sigprocmask(SIG_SETMASK, &prev_all, NULL);
+
 			setpgid(pid, pid);
 			struct job_t* job = getjobpid(jobs, pid);
 			printf("[%d] (%d) %s", job->jid ,pid, cmdline);
@@ -327,15 +340,25 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
 	int olderrno = errno;
+	int status;
 	pid_t pid;
-	while ((pid = waitpid(-1, NULL, 0)) > 0) {
-		printf("Handler reaped child job[%d]\n", pid2jid(pid));
-		deletejob(jobs, pid);
+	sigset_t mask_all, prev_all;
+
+	sigfillset(&mask_all);
+
+	while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+		// printf("Handler reaped child job[%d]\n", pid2jid(pid));
+		if (WIFEXITED(status)) {
+			printf("deleted\n");
+			sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+			deletejob(jobs, pid);	
+			sigprocmask(SIG_SETMASK, &prev_all, NULL);
+		} 
 	}
 	if (errno != ECHILD) {
 		printf("waitpid error");
 	}
-	sleep(1);
+	
 	errno = olderrno;
     return;
 }
@@ -349,11 +372,16 @@ void sigint_handler(int sig)
 {
 	/* find groupid and check every proccess's group id */
 	pid_t pid = fgpid(jobs);
-	printf("forground process id = %d\n", pid);
+	sigset_t mask_all, prev_all;
+
+	sigfillset(&mask_all);
+	// printf("forground process id = %d\n", pid);
 	if (pid != 0) {
 		printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, SIGINT);
 		kill(-pid, SIGINT);
-		deletejob(jobs, pid);
+		sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+		deletejob(jobs, pid);	
+		sigprocmask(SIG_SETMASK, &prev_all, NULL);
 	}
 	return;
 
@@ -367,11 +395,24 @@ void sigint_handler(int sig)
 void sigtstp_handler(int sig) 
 {
 	pid_t pid = fgpid(jobs);
+	int jid = pid2jid(pid); 
+	int i;
+	sigset_t mask_all, prev_all;
+
+	sigfillset(&mask_all);
 	if (pid != 0) {
-		printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, SIGTSTP);
+		printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, SIGTSTP);
 		kill(-pid, SIGTSTP);
+		sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+		for (i = 0; i < MAXJOBS; i++) {
+			if (jobs[i].jid == jid) {
+				jobs[i].state = ST;
+				printf("%s\n",jobs[i].cmdline );
+				break;
+			}
+		}
+		sigprocmask(SIG_SETMASK, &prev_all, NULL);
 	}
-	printf("asdasdsadasd\n");
     return;
 }
 
