@@ -210,7 +210,7 @@ void eval(char *cmdline)
 			// printf("asdasdasdasdasd\n");
 			
 		} else {
-			sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+			sigprocmask(SIG_BLOCK, &mask_all, NULL);
 			addjob(jobs, pid, BG, cmdline);
 			sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
@@ -346,11 +346,11 @@ void sigchld_handler(int sig)
 	sigset_t mask_all, prev_all;
 
 	sigfillset(&mask_all);
-
+	printf("this is sigchld handler\n");
 	while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
 		// printf("Handler reaped child job[%d]\n", pid2jid(pid));
 		if (WIFEXITED(status)) {
-			printf("deleted\n");
+			// printf("deleted\n");
 			sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
 			deletejob(jobs, pid);	
 			sigprocmask(SIG_SETMASK, &prev_all, NULL);
