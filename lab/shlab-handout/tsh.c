@@ -174,6 +174,7 @@ void eval(char *cmdline)
 
 	sigfillset(&mask_all);
 	sigemptyset(&mask_one);
+	sigemptyset(&prev_all);
 	sigaddset(&mask_one, SIGCHLD);
 
 	strcpy(buf, cmdline);
@@ -191,7 +192,7 @@ void eval(char *cmdline)
 			}
 		}
 		if (!bg) {
-			sigprocmask(SIG_BLOCK, &mask_all, &prev_all); // block all signal when adding job
+			sigprocmask(SIG_BLOCK, &mask_all, NULL); // block all signal when adding job
 			addjob(jobs, pid, FG, cmdline);
 			sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
@@ -203,7 +204,7 @@ void eval(char *cmdline)
 				// unix_error("waitfg: waitpid error");
 			}
 			if (WIFEXITED(status)) {
-				sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+				sigprocmask(SIG_BLOCK, &mask_all, NULL);
 				deletejob(jobs, pid);
 				sigprocmask(SIG_SETMASK, &prev_all, NULL);
 			}
