@@ -297,7 +297,7 @@ int builtin_cmd(char **argv)
 	}
 
 	if (!strcmp(cmd, "jobs")) {
-		listjobs(jobs);
+		listbgjobs(jobs);
 		return 1;
 	}
 
@@ -316,6 +316,60 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+	char* cmd = argv[0];
+	char* param = argv[1];
+	int len, i, id;  
+ 	char sign = param[0];
+ 	struct job_t* job;
+
+ 	// printf("%s\n", &param[0]);
+ 	if (!strcmp(&sign,"%")) {
+ 		id = atoi(&param[1]);
+		job = getjobjid(jobs, id);
+		if (job == NULL) {
+			printf("[%s]: No such job\n", &param[1]);
+			return;
+		} 		
+ 	} else if (isdigit(param[1])) {
+ 		id = atoi(param);
+ 		job = getjobpid(jobs, id);
+		if (job == NULL) {
+			printf("[%s]: No such process\n", param);
+			return;
+		} 		
+ 	} else {
+ 		printf("fg: argument must be a PID or %%jobid\n" );
+ 		return;
+ 	}
+    
+
+	int state;
+	pid_t fpid = fgpid(jobs);
+	
+	// check fg or bg
+	if (!strcmp(cmd, "fg")) {
+		state = FG;
+	} else {
+		state = BG;
+	} 
+	job->state = state;
+	kill(job->pid, SIGCONT);
+
+
+
+	// check jid or pid or not valid input
+	// printf("%s\n", *(param[0]));
+	// if (!strcmp(argv[1][0],"%")) {
+	// 	int i;
+	// 	int pid = argv[1][0];
+	// 	// for (i = 0; i < MAXJOBS; i++) {
+	// 	printf("%d\n", argv[1][0]);
+	// 	// }
+	// } else if (isdigit(argv[1][0])) {
+	// 	printf("argv[1][0]:%d\n", argv[1][0]);
+	// } else {
+	// 	// invalid
+	// }
     return;
 }
 
@@ -346,7 +400,7 @@ void sigchld_handler(int sig)
 	sigset_t mask_all, prev_all;
 
 	sigfillset(&mask_all);
-	printf("this is sigchld handler\n");
+	// printf("this is sigchld handler\n");
 	while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
 		// printf("Handler reaped child job[%d]\n", pid2jid(pid));
 		if (WIFEXITED(status)) {
