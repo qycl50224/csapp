@@ -184,7 +184,7 @@ void eval(char *cmdline)
 	if (!builtin_cmd(argv)) { 
 		sigprocmask(SIG_BLOCK, &mask_one, &prev_one); // block SIGCHLD
 		if ((pid = fork()) == 0) {
-			printf("this is son pgroup = %d pid = [%d]\n", getpgrp(), getpid());		
+			// printf("this is son pgroup = %d pid = [%d]\n", getpgrp(), getpid());		
 			sigprocmask(SIG_SETMASK, &prev_one, NULL); // unblock SIGCHLD
 			if (execve(argv[0], argv, environ) < 0) {
 				printf("%s: Command not found.\n", argv[0]);
@@ -198,17 +198,7 @@ void eval(char *cmdline)
 
 			setpgid(pid, pid);
 			// printf("forground pid = %d   pgid = %d curpid = %d ppid = %d \n", pid, pid, getpid(), getppid());
-			int status;
-			// printf("===============\n");
-			if (waitpid(pid, &status, WUNTRACED) < 0) {
-				// unix_error("waitfg: waitpid error");
-			}
-			if (WIFEXITED(status)) {
-				sigprocmask(SIG_BLOCK, &mask_all, NULL);
-				deletejob(jobs, pid);
-				sigprocmask(SIG_SETMASK, &prev_all, NULL);
-			}
-			// printf("asdasdasdasdasd\n");
+			waitfg(pid);
 			
 		} else {
 			sigprocmask(SIG_BLOCK, &mask_all, NULL);
@@ -343,18 +333,19 @@ void do_bgfg(char **argv)
  		return;
  	}
     
-
-	int state;
 	pid_t fpid = fgpid(jobs);
 	
 	// check fg or bg
 	if (!strcmp(cmd, "fg")) {
-		state = FG;
+		job->state = FG;
+		kill(job->pid, SIGCONT);
+		waitfg(job->pid);
 	} else {
-		state = BG;
+		job->state = BG;
+		kill(job->pid, SIGCONT);
 	} 
-	job->state = state;
-	kill(job->pid, SIGCONT);
+	
+	
 
 
 
@@ -379,6 +370,21 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+	sigset_t mask_all, prev_all;
+	sigfillset(&mask_all);
+	sigemptyset(&prev_all);
+	
+	int status;
+	// printf("===============\n");
+	if (waitpid(pid, &status, WUNTRACED) < 0) {
+		// unix_error("waitfg: waitpid error");
+	}
+	// safe exitd or return then delete job, if it's stopped then no action
+	if (WIFEXITED(status)) {
+		sigprocmask(SIG_BLOCK, &mask_all, NULL);
+		deletejob(jobs, pid);
+		sigprocmask(SIG_SETMASK, &prev_all, NULL);
+	}
     return;
 }
 
@@ -411,11 +417,11 @@ void sigchld_handler(int sig)
 			sigprocmask(SIG_SETMASK, &prev_all, NULL);
 		} 
 	}
-	if (errno != ECHILD) {
-		printf("waitpid error");
-	}
+	// if (errno != ECHILD) {
+	// 	unix_error("waitpid error");
+	// }
 	
-	errno = olderrno;
+	// errno = olderrno;
     return;
 }
 
