@@ -308,11 +308,25 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 	char* cmd = argv[0];
+	// printf("%ld\n",sizeof(*argv));
+	// printf("%ld\n",sizeof(**argv));
+	int i, id, len;  
+	len = 1;
+	for (i = 0; i < 8; i++) {
+		// printf("argv[1]=%s\n",argv[i]);
+		if (argv[i]==NULL) {
+			len = i;
+			break;
+		}
+	}
+	// printf("len=%d\n", len);
+	if (len <= 1) {
+		printf("%s command requires PID or %%jobid argument\n", cmd);
+		return;		
+	}
 	char* param = argv[1];
-	int len, i, id;  
  	char sign = param[0];
  	struct job_t* job;
-
  	// printf("%s\n", &param[0]);
  	if (!strcmp(&sign,"%")) {
  		id = atoi(&param[1]);
@@ -333,21 +347,18 @@ void do_bgfg(char **argv)
  		return;
  	}
     
-	pid_t fpid = fgpid(jobs);
+	
 	
 	// check fg or bg
 	if (!strcmp(cmd, "fg")) {
 		job->state = FG;
-		kill(job->pid, SIGCONT);
+		kill(-job->pid, SIGCONT);
 		waitfg(job->pid);
 	} else {
 		job->state = BG;
-		kill(job->pid, SIGCONT);
+		kill(-job->pid, SIGCONT);
+		printf("[%d] (%d) %s", job->jid ,job->pid, job->cmdline);
 	} 
-	
-	
-
-
 
 	// check jid or pid or not valid input
 	// printf("%s\n", *(param[0]));
