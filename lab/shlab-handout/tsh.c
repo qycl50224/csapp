@@ -78,7 +78,7 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid);
 struct job_t *getjobjid(struct job_t *jobs, int jid); 
 int pid2jid(pid_t pid); 
 void listjobs(struct job_t *jobs);
-void listbgjobs(struct job_t *jobs);
+void listbgjobs(struct job_t *jobs); // me add a helper
 
 void usage(void);      
 void unix_error(char *msg);
@@ -172,9 +172,9 @@ void eval(char *cmdline)
 	pid_t pid;
 	sigset_t mask_all, prev_all, mask_one, prev_one;
 
-	sigfillset(&mask_all);
-	sigemptyset(&mask_one);
-	sigemptyset(&prev_all);
+	sigfillset(&mask_all);	  /* mask all signal */
+	sigemptyset(&mask_one);   /* mask SIGCHLD */
+	sigemptyset(&prev_all);   /* mask nothing */
 	sigaddset(&mask_one, SIGCHLD);
 
 	strcpy(buf, cmdline);
@@ -194,9 +194,9 @@ void eval(char *cmdline)
 		if (!bg) {
 			sigprocmask(SIG_BLOCK, &mask_all, NULL); // block all signal when adding job
 			addjob(jobs, pid, FG, cmdline);
-			sigprocmask(SIG_SETMASK, &prev_all, NULL);
+			sigprocmask(SIG_SETMASK, &prev_all, NULL); // unblock all signal when added a job
 
-			setpgid(pid, pid);
+			setpgid(pid, pid); // set groupId as same as pid for the same job's processes
 			// printf("forground pid = %d   pgid = %d curpid = %d ppid = %d \n", pid, pid, getpid(), getppid());
 			waitfg(pid);
 			
@@ -284,20 +284,13 @@ int builtin_cmd(char **argv)
 
 	if ((!strcmp(cmd, "fg")) || (!strcmp(cmd, "bg"))) {
 		do_bgfg(argv);
-		return 1;
+		return 1;   /* is a builtin command */
 	}
 
 	if (!strcmp(cmd, "jobs")) {
 		listbgjobs(jobs);
 		return 1;
 	}
-
-	// if (!strcmp(cmd, "kill")) {
-	// 	deletejob
-	// }
-
-	
-
 
     return 0;     /* not a builtin command */
 }
@@ -308,18 +301,20 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 	char* cmd = argv[0];
-	// printf("%ld\n",sizeof(*argv));
-	// printf("%ld\n",sizeof(**argv));
 	int i, id, len;  
 	len = 1;
+	/* 
+	 * the len(argv) == 8, but not all element valid, so check the avlid len
+	 * for example when input is "fg" or "bg", they're not valid input
+	 */
 	for (i = 0; i < 8; i++) {
-		// printf("argv[1]=%s\n",argv[i]);
 		if (argv[i]==NULL) {
 			len = i;
 			break;
 		}
 	}
 	// printf("len=%d\n", len);
+	/* not valid len then return */
 	if (len <= 1) {
 		printf("%s command requires PID or %%jobid argument\n", cmd);
 		return;		
@@ -328,16 +323,19 @@ void do_bgfg(char **argv)
  	char sign = param[0];
  	struct job_t* job;
  	// printf("%s\n", &param[0]);
+ 	/* start with "%" so its a jid */
  	if (!strcmp(&sign,"%")) {
  		id = atoi(&param[1]);
 		job = getjobjid(jobs, id);
+		/* not exist */
 		if (job == NULL) {
 			printf("[%s]: No such job\n", &param[1]);
 			return;
 		} 		
- 	} else if (isdigit(param[1])) {
+ 	} else if (isdigit(param[1])) { /* start with digit so regard it as pid but it still may not valid */
  		id = atoi(param);
  		job = getjobpid(jobs, id);
+ 		/* not exist */
 		if (job == NULL) {
 			printf("[%s]: No such process\n", param);
 			return;
@@ -347,9 +345,7 @@ void do_bgfg(char **argv)
  		return;
  	}
     
-	
-	
-	// check fg or bg
+	/* check fg or bg */
 	if (!strcmp(cmd, "fg")) {
 		job->state = FG;
 		kill(-job->pid, SIGCONT);
@@ -357,22 +353,9 @@ void do_bgfg(char **argv)
 	} else {
 		job->state = BG;
 		kill(-job->pid, SIGCONT);
+		/* this print is to pass test15 */
 		printf("[%d] (%d) %s", job->jid ,job->pid, job->cmdline);
 	} 
-
-	// check jid or pid or not valid input
-	// printf("%s\n", *(param[0]));
-	// if (!strcmp(argv[1][0],"%")) {
-	// 	int i;
-	// 	int pid = argv[1][0];
-	// 	// for (i = 0; i < MAXJOBS; i++) {
-	// 	printf("%d\n", argv[1][0]);
-	// 	// }
-	// } else if (isdigit(argv[1][0])) {
-	// 	printf("argv[1][0]:%d\n", argv[1][0]);
-	// } else {
-	// 	// invalid
-	// }
     return;
 }
 
@@ -390,7 +373,7 @@ void waitfg(pid_t pid)
 	if (waitpid(pid, &status, WUNTRACED) < 0) {
 		// unix_error("waitfg: waitpid error");
 	}
-	// safe exitd or return then delete job, if it's stopped then no action
+	/* safe exitd or return then delete job, if it's stopped then no action */
 	if (WIFEXITED(status)) {
 		sigprocmask(SIG_BLOCK, &mask_all, NULL);
 		deletejob(jobs, pid);
@@ -419,6 +402,10 @@ void sigchld_handler(int sig)
 
 	sigfillset(&mask_all);
 	// printf("this is sigchld handler\n");
+	/* 
+	 * cuz we want it doesn't wait for any other currently 
+	 * running children to terminate, so use "WNOHANG | WUNTRACED"
+	 */
 	while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
 		// printf("Handler reaped child job[%d]\n", pid2jid(pid));
 		if (WIFEXITED(status)) {
@@ -428,11 +415,6 @@ void sigchld_handler(int sig)
 			sigprocmask(SIG_SETMASK, &prev_all, NULL);
 		} 
 	}
-	// if (errno != ECHILD) {
-	// 	unix_error("waitpid error");
-	// }
-	
-	// errno = olderrno;
     return;
 }
 
