@@ -106,6 +106,12 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
+	size_t size = GET_SIZE(ptr);
+
+	PUT(HDRP(size), PACK(size, 0));
+	PUT(FTRP(size), PACK(size, 0));
+
+	coalesce(bp);
 }
 
 /*
@@ -148,7 +154,7 @@ static void *extend_heap(size_t words)
 }
 
 /*
- * 
+ * coalesce - use to coalesce adjecant free block
  */
 static void *coalesce(void *bp)
 {
@@ -173,7 +179,7 @@ static void *coalesce(void *bp)
 		bp = PREV_BLKP(bp);
 	}
 
-	else {
+	else {                              /* case 4 */
 		size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
 		PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
