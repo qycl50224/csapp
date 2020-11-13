@@ -219,6 +219,23 @@ static void *find_fit(size_t asize)
 	return NULL;
 }
 
+static void place(void *bp, size_t size)
+{
+	size_t csize = GET_SIZE(HDRP(bp));
+
+
+	if ((csize - size) >= 2*DSIZE) {
+		PUT(HDRP(bp), PACK(size, 1));
+		PUT(FTRP(bp), PACK(size, 1));
+		bp = NEXT_BLKP(bp);
+		PUT(HDRP(bp), PACK(csize-size), 0);
+		PUT(FTRP(bp), PACK(csize-size), 0);
+	} else {
+		PUT(HDRP(bp), PACK(size, 1));
+		PUT(FTRP(bp), PACK(size, 1));
+	}
+}
+
 
 
 
