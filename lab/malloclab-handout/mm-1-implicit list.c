@@ -206,6 +206,18 @@ static void *coalesce(void *bp)
 }
 
 
+static void *find_fit(size_t asize)
+{
+	void* bp;
+	
+	for (bp = mem_heap_lo(); GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+		if (!GET_ALLOC(HDRP(bp)) && (asize < = GET_SIZE(HDRP(bp)))) {
+			return bp;
+		}
+	}
+
+	return NULL;
+}
 
 
 
