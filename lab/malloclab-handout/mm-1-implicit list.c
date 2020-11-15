@@ -63,7 +63,7 @@ team_t team = {
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
-#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) 
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE((HDRP(bp)))) 
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
 
@@ -74,6 +74,8 @@ static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t size);
+
+static char *headptr = 0;
 int mm_check();
 
 
@@ -82,21 +84,41 @@ int mm_check();
  */
 int mm_init(void)
 {
-    void *headptr;
+    
     if ((headptr = mem_sbrk(4*WSIZE)) == (void *)-1) {
         return -1;
     }
     PUT(headptr, 0);
-    PUT(headptr+WSIZE, PACK(DSIZE, 1));
+    PUT(headptr+1*WSIZE, PACK(DSIZE, 1));
     PUT(headptr+2*WSIZE, PACK(DSIZE, 1));
     PUT(headptr+3*WSIZE, PACK(0, 1));
     headptr += (2*WSIZE);
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL) {
         return -1;
     }
-    printf("======================\n");
 
     return 0;
+}
+
+/*
+ * extend_heap - use to extend the capacity of the heap
+ */
+static void *extend_heap(size_t words)
+{
+    char *bp;
+    size_t size;
+
+    size = (words % 2)? (words+1)*WSIZE:words*WSIZE;
+    // size = ALIGN(words*WSIZE);
+    // printf("words:%d  size:%d\n", words, size );
+    if ((long)(bp = mem_sbrk(size)) == (void*)-1)
+        return NULL;
+
+    PUT(HDRP(bp), PACK(size, 0)); 
+    PUT(FTRP(bp), PACK(size, 0));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
+ 
+    return coalesce(bp);
 }
 
 /* 
@@ -107,9 +129,8 @@ void *mm_malloc(size_t size)
 {
     size_t asize;       /* Adjusted block size */
     size_t extendsize;  /* Amount to extend heap if no fit */
-    char *bp;
+    void *bp;
 
-    printf("aaaaaaaaaaaaaaaaaaaaaaa\n");
     if (size == 0)
         return NULL;
     // adjust block size to include overhead and alignment reqs
@@ -118,22 +139,16 @@ void *mm_malloc(size_t size)
     else 
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
-
-    printf("ccccccccccccc\n");
     /* Search the free list fot a fit */
     if ((bp = find_fit(asize)) != NULL) {
-        printf("ddddddddddd\n");
         place(bp, asize);
-        printf("eeeeeee\n");
         return bp;
     }
-    printf("bbbbbbbbbbbbbbbbbbbbbbbb\n");
     // no fit free block, get more memory and place the block
     extendsize = MAX(asize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
         return NULL;
     place(bp, asize);
-    printf("aaaaaaaaaaaaaaaaaaaaaaa\n");
     return bp;
 }
 
@@ -142,10 +157,12 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
+
+	if (ptr == 0) return; 
     size_t size = GET_SIZE(HDRP(ptr));
 
-    PUT(HDRP(size), PACK(size, 0));
-    PUT(FTRP(size), PACK(size, 0));
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
 
     coalesce(ptr);
 }
@@ -175,30 +192,17 @@ void *mm_realloc(void *ptr, size_t size)
  */
 int mm_check()
 {
-    
+    // void* bp;
+    // for (bp = mem_heap_lo()+2*DSIZE; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+    //     if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
+    //         return bp;
+    //     }
+    // }
+    // return NULL;   
 }
 
 
-/*
- * extend_heap - use to extend the capacity of the heap
- */
-static void *extend_heap(size_t words)
-{
-    char *bp;
-    size_t size;
 
-    // size = (words % 2)? (words+1)*WSIZE:words*WSIZE;
-    size = ALIGN(words*WSIZE);
-    printf("words:%d  size:%d\n", words, size );
-    if ((long)(bp = mem_sbrk(size)) == -1)
-        return NULL;
-
-    PUT(HDRP(bp), PACK(size, 0)); 
-    PUT(FTRP(bp), PACK(size, 0));
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
- 
-    return coalesce(bp);
-}
 
 /*
  * coalesce - use to coalesce adjecant free block
@@ -228,8 +232,8 @@ static void *coalesce(void *bp)
 
     else {                              /* case 4 */
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
 
@@ -240,13 +244,11 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     void* bp;
-    
-    for (bp = mem_heap_lo()+2*DSIZE; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+    for (bp = headptr; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
             return bp;
         }
     }
-
     return NULL;
 }
 
@@ -254,33 +256,15 @@ static void place(void *bp, size_t size)
 {
     size_t csize = GET_SIZE(HDRP(bp));
 
-    printf("1111\n");
-    if ((csize - size) >= 2*DSIZE) {
-        printf("hdrp:%p  ftrp:%p\n", HDRP(bp), FTRP(bp));
+    if ((csize - size) >= (2*DSIZE)) {
+        // printf("hdrp:%p  ftrp:%p\n", HDRP(bp), FTRP(bp));
         PUT(HDRP(bp), PACK(size, 1));
         PUT(FTRP(bp), PACK(size, 1));
-        // printf("22222\n");
-        printf("HDRP:%p bp:%p getsize:%d csize:%d  size:%d\n", HDRP(bp), bp, GET_SIZE(HDRP(bp)), csize, size);
-        // printf("hdrp:%p  ftrp:%p\n", HDRP(bp), FTRP(bp));
         bp = NEXT_BLKP(bp);
-        // printf("3333333\n");
         PUT(HDRP(bp), PACK(csize-size, 0));
-        // printf("5555\n");
-        printf("HDRP:%p bp:%p getsize:%d csize:%d  size:%d\n", HDRP(bp), bp, GET_SIZE(HDRP(bp)), csize, size);
-        // printf("hdrp:%p  ftrp:%p\n", HDRP(bp), FTRP(bp));
         PUT(FTRP(bp), PACK(csize-size, 0));
-        // printf("666\n");
     } else {
-        // printf("444444444\n");
-        PUT(HDRP(bp), PACK(size, 1));
-        PUT(FTRP(bp), PACK(size, 1));
+        PUT(HDRP(bp), PACK(csize, 1));
+        PUT(FTRP(bp), PACK(csize, 1));
     }
 } 
-
-
-
-
-
-
-
-
