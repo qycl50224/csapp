@@ -107,17 +107,14 @@ static void *extend_heap(size_t words)
 {
     char *bp;
     size_t size;
-
     size = (words % 2)? (words+1)*WSIZE:words*WSIZE;
     // size = ALIGN(words*WSIZE);
     // printf("words:%d  size:%d\n", words, size );
-    if ((long)(bp = mem_sbrk(size)) == (void*)-1)
+    if ((long)(bp = mem_sbrk(size)) == -1)
         return NULL;
-
     PUT(HDRP(bp), PACK(size, 0)); 
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
- 
     return coalesce(bp);
 }
 
@@ -134,11 +131,7 @@ void *mm_malloc(size_t size)
     if (size == 0)
         return NULL;
     // adjust block size to include overhead and alignment reqs
-    if (size <= DSIZE)
-        asize = 2*DSIZE;
-    else 
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
-
+    asize = (size <= DSIZE)?(2*DSIZE):(DSIZE*((size +(DSIZE)+(DSIZE-1))/DSIZE));
     /* Search the free list fot a fit */
     if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
@@ -157,41 +150,58 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-
-	if (ptr == 0) return; 
+    if (ptr == 0) return; 
     size_t size = GET_SIZE(HDRP(ptr));
 
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
 
-    coalesce(ptr);
+    coalesce(ptr);  // a vital important step
 }
 
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * method 1: create a new block to substitude the old block, so the cost is
+ * expensive, which means its not very fast
  */
 void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     void *newptr;
     size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    size_t asize;
+    if (ptr == NULL) {
+        newptr = mm_malloc(size);
+        return newptr;
+    }
+    if (size == 0) {
+        mm_free(ptr);
+        return NULL;
+    }
+    // cuz we need to align every block so the size must be aligned
+    asize = (size <= DSIZE)?(DSIZE*2):(DSIZE*((size+(DSIZE)+(DSIZE-1))/DSIZE));
+    // check if the block is allocated by mm_malloc or mm_realloc
+    if (GET_SIZE(HDRP(ptr)) == GET_SIZE(FTRP(ptr))) {
+        // differen block 
+        newptr = mm_malloc(asize);
+        if (newptr == NULL) 
+          return NULL;
+        copySize = GET_SIZE(HDRP(ptr)) - DSIZE;
+        if (asize < copySize)
+          copySize = asize;
+        memcpy(newptr, oldptr, copySize);
+        place(newptr, asize); // don't forget to fix the header and footer
+        mm_free(oldptr);
+        return newptr;    
+    } else {
+        return NULL;
+    } 
 }
-
 /*
  * mm_check - Heap Consistency Checker 
  */
-int mm_check()
-{
+// int mm_check()
+// {
     // void* bp;
     // for (bp = mem_heap_lo()+2*DSIZE; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
     //     if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
@@ -199,9 +209,7 @@ int mm_check()
     //     }
     // }
     // return NULL;   
-}
-
-
+// }
 
 
 /*
@@ -244,6 +252,7 @@ static void *coalesce(void *bp)
 static void *find_fit(size_t asize)
 {
     void* bp;
+    // headptr -> the first block 
     for (bp = headptr; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
             return bp;
@@ -255,9 +264,9 @@ static void *find_fit(size_t asize)
 static void place(void *bp, size_t size)
 {
     size_t csize = GET_SIZE(HDRP(bp));
-
+    // 2*DSIZE-> Minimum block is 2*DSIZE = 16 byte, so if its larger then can 
+    // be devided
     if ((csize - size) >= (2*DSIZE)) {
-        // printf("hdrp:%p  ftrp:%p\n", HDRP(bp), FTRP(bp));
         PUT(HDRP(bp), PACK(size, 1));
         PUT(FTRP(bp), PACK(size, 1));
         bp = NEXT_BLKP(bp);
