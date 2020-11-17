@@ -116,8 +116,8 @@ static void *extend_heap(size_t words)
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
     // immediate or deferred coalesce
-    // but here its not significant, so i keep coalesce 
-    return coalesce(bp);
+    // if deferred coalsece, keep here also coalesce, or having bug :(
+    return bp;
 }
 
 /* 
