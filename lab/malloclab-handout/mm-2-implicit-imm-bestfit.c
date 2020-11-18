@@ -199,6 +199,54 @@ void *mm_realloc(void *ptr, size_t size)
         return NULL;
     } 
 }
+
+void *mm_realloc(void *ptr, size_t size)
+{
+    if(ptr == NULL){
+        return mm_malloc(size);
+    }
+    if(size == 0){
+        mm_free(ptr);
+        return NULL;
+    }
+
+    size_t asize;
+    if(size <= DSIZE) asize  = 2 * DSIZE;
+    else asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1))/DSIZE);
+
+    size_t oldsize = GET_SIZE(HDRP(ptr));
+    if(oldsize == asize) return ptr;
+    else if(oldsize > asize){
+        PUT(HDRP(ptr), PACK(asize, 1));
+        PUT(FTRP(ptr), PACK(asize, 1));
+        PUT(HDRP(NEXT_BLKP(ptr)), PACK(oldsize - asize, 0));
+        PUT(FTRP(NEXT_BLKP(ptr)), PACK(oldsize - asize, 0));
+        coalesce(NEXT_BLKP(ptr));
+        return ptr;
+    }
+    else{ // the case that asize > oldsize which means lacking of space, so we 
+          // consider coalesce the next one if the next is free block 
+        size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(ptr)));
+        // here its a simulation of place()
+        if(!next_alloc && GET_SIZE(HDRP(NEXT_BLKP(ptr))) + oldsize >= asize) {
+            size_t last = GET_SIZE(HDRP(NEXT_BLKP(ptr))) + oldsize - asize;
+            PUT(HDRP(ptr), PACK(asize, 1));
+            PUT(FTRP(ptr), PACK(asize, 1));
+            if(last >= DSIZE){ // don't forget to divide if possible
+                PUT(HDRP(NEXT_BLKP(ptr)), PACK(last, 0));
+                PUT(FTRP(NEXT_BLKP(ptr)), PACK(last, 0));
+            }
+            return ptr;
+        }
+        else{ // concat the next free block is still imcompatible, then allocate
+            char *newptr = mm_malloc(asize);
+            if(newptr == NULL) return NULL;
+            memcpy(newptr, ptr, oldsize - DSIZE);
+            mm_free(ptr);
+            return newptr;
+        }
+    }
+}
 /*
  * mm_check - Heap Consistency Checker 
  */
