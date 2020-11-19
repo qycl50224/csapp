@@ -247,8 +247,11 @@ static void place(void *bp, size_t size)
 
 static void connect(void *prev, void *next)
 {
-    PUT((char *)prev+1*WSIZE, next);
-    PUT((char *)next, prev);
+    if (prev != next) {
+        PUT((char *)prev+1*WSIZE, next);
+        PUT((char *)next, prev);    
+    }
+    
 }
 
 
@@ -262,7 +265,118 @@ static int is_free_tail(void *bp)
     return (bp == freetail)? 1:0;
 }
 
+/*
+ * mm_free - Freeing a block does nothing.
+ */
+void mm_free(void *ptr)
+{
+    if (ptr == 0) return; 
+    size_t size = GET_SIZE(HDRP(ptr));
 
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+    
+    // deferred coalesce or immediate coalesce
+    coalesce(ptr);  // a vital important step
+
+}
+
+/*
+ * coalesce - use to coalesce adjecant free block
+ */
+static void *coalesce(void *bp)
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
+    char *prev;
+    char *next;
+
+    if (prev_alloc && next_alloc) {  /* case 1 */
+        // connect(bp, freehead);
+        // freehead = bp;  // for freehead, is it needed to set its prev as itself?
+    }
+
+    else if (prev_alloc && !next_alloc) {  /* case 2 */
+
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+
+        if (is_free_head(NEXT_BLKP(bp))) {
+            prev = bp;
+        } else {
+            prev = GET_PREV_FREE(NEXT_BLKP(bp));
+        }
+        if (is_free_tail(NEXT_BLKP(bp))) {
+            next = bp;
+        } else {
+            next = GET_NEXT_FREE(NEXT_BLKP(bp));
+        }
+        connect(prev, next);
+        // connect(bp, freehead);  // if bp == freehead, 
+        // freehead = bp;          // it is still valid
+    }
+
+    else if (!prev_alloc && next_alloc) {   /* case 3 */
+        size += GET_SIZE(FTRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+
+        if (is_free_head(PREV_BLKP(bp))) {
+            prev = bp;
+        } else {
+            prev = GET_PREV_FREE(PREV_BLKP(bp));
+        }
+        if (is_free_tail(PREV_BLKP(bp))) {
+            next = bp;
+        } else {
+            next = GET_NEXT_FREE(PREV_BLKP(bp));
+        }
+        connect(prev, next);
+
+        bp = PREV_BLKP(bp);
+        // connect(bp, freehead);
+        // freehead = bp;
+    }
+
+    else {                              /* case 4 */
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+
+        if (is_free_head(PREV_BLKP(bp))) {
+            prev = bp;
+        } else {
+            prev = GET_PREV_FREE(PREV_BLKP(bp));
+        }
+        if (is_free_tail(PREV_BLKP(bp))) {
+            next = bp;
+        } else {
+            next = GET_NEXT_FREE(PREV_BLKP(bp));
+        }
+        connect(prev, next);
+
+        if (is_free_head(NEXT_BLKP(bp))) {
+            prev = bp;
+        } else {
+            prev = GET_PREV_FREE(NEXT_BLKP(bp));
+        }
+        if (is_free_tail(NEXT_BLKP(bp))) {
+            next = bp;
+        } else {
+            next = GET_NEXT_FREE(NEXT_BLKP(bp));
+        }  
+        connect(prev, next);      
+
+        bp = PREV_BLKP(bp);
+        // connect(bp, freehead);
+        // freehead = bp;
+    }
+    connect(bp, freehead);
+    freehead = bp;  // for freehead, is it needed to set its prev as itself?
+    return bp;
+}
 
 
 
