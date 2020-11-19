@@ -60,10 +60,12 @@ team_t team = {
 
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
-static void *find_fit(size_t asize);
+static void *first_fit(size_t asize);
 static void *best_fit(size_t asize);
 static void place(void *bp, size_t size);
 static void deferred_coalesce();
+static int is_free_head(void *bp);
+static int is_free_tail(void *bp)
 static char *headptr = 0;
 static char *freehead = 0; 
 static char *freetail = 0; 
@@ -90,8 +92,9 @@ int mm_init(void)
     PUT(headptr+3*WSIZE, PACK(0, 1));
     headptr += (2*WSIZE);
     freehead = headptr;
-    PUT(freehead, headptr+1*WSIZE);    // initially, the free block next is end 
-    PUT(freehead+1, freehead); // the free block prev is it self
+    freetail = headptr;
+    PUT(freehead, headptr);    // initially, there is only one free block,  
+    PUT(freehead+1*WSIZE, headptr);         // so the next and prev is it self
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL) {
         return -1;
     }
@@ -127,14 +130,13 @@ void *mm_malloc(size_t size)
     // adjust block size to include overhead and alignment reqs
     asize = (size <= DSIZE)?(2*DSIZE):(DSIZE*((size +(DSIZE)+(DSIZE-1))/DSIZE));
     /* Search the free list fot a fit */
-    if ((bp = find_fit(asize)) != NULL) {
-        connect_prev_next(bp);
+    if ((bp = first_fit(asize)) != NULL) {
         place(bp, asize);
         return bp;
     } 
     // else {
     //     deferred_coalesce();    
-    //     if ((bp = find_fit(asize)) != NULL) {
+    //     if ((bp = first_fit(asize)) != NULL) {
     //         place(bp, asize);
     //         return bp;
     //     }
@@ -148,9 +150,32 @@ void *mm_malloc(size_t size)
     return bp;
 }
 
-static void *find_fit(size_t asize)
+static void *first_fit(size_t asize)
 {
+    void *bp;
+    for (bp = freehead; GET_SIZE(HDRP(bp)) > 0; bp = GET_NEXT_FREE(bp)) {
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+            return bp;
+        }
+    }
+}
 
+static void *best_fit(size_t asize)
+{
+    void *bp;
+    void *target = NULL;
+    size_t min = 0;
+    size_t size;
+    for (bp = freehead; GET_SIZE(HDRP(bp)) > 0; bp = GET_NEXT_FREE(bp)) {
+        size = GET_SIZE(HDRP(bp));
+        if (!GET_ALLOC(HDRP(bp)) && size >= asize) {
+            if ((min == 0) || (size < min)) {
+                target = bp;
+                min = size;
+            }
+        }
+    }
+    return target;
 }
 
 static void place(void *bp, size_t size)
