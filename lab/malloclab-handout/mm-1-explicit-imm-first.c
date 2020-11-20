@@ -70,7 +70,6 @@ static void place(void *bp, size_t asize);
 static void deferred_coalesce();
 static void put_to_first(void *bp);
 static void remove_from_free_list(void *bp);
-int mm_check(char *function);
 static char *headptr = 0;
 static char *root = 0; 
 
@@ -128,18 +127,10 @@ void *mm_malloc(size_t size)
     // adjust block size to include overhead and alignment reqs
     asize = (size <= DSIZE)?(2*DSIZE):(DSIZE*((size +(DSIZE)+(DSIZE-1))/DSIZE));
     /* Search the free list fot a fit */
-    if ((bp = first_fit(asize)) != NULL) {
+    if ((bp = firstw_fit(asize)) != NULL) { // got 84 for first_fit and 65 for best_fit
         place(bp, asize);
-
         return bp;
     } 
-    // else {
-    //     deferred_coalesce();    
-    //     if ((bp = first_fit(asize)) != NULL) {
-    //         place(bp, asize);
-    //         return bp;
-    //     }
-    // }
     
     // no fit free block, get more memory and place the block
     extendsize = MAX(asize, CHUNKSIZE);
@@ -153,6 +144,7 @@ void *mm_malloc(size_t size)
 static void *first_fit(size_t asize)
 {
     void *bp;
+    // GET(root)->the first free, NEXT_FREE(bp) is an address 
     for (bp = GET(root); bp != NULL; bp = GET(NEXT_FREE(bp))) {
         if (GET_SIZE(HDRP(bp)) >= asize) {
             return bp;
