@@ -292,57 +292,6 @@ static void remove_from_free_list(void *bp)
     PUT(PREV_FREE(bp), 0);
 }
 
-
-// void *mm_realloc(void *ptr, size_t size)
-// {
-//     if(ptr == NULL){
-//         return mm_malloc(size);
-//     }
-//     if(size == 0){
-//         mm_free(ptr);
-//         return NULL;
-//     }
-
-//     size_t asize;
-//     if(size <= DSIZE) asize  = 2 * DSIZE;
-//     else asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1))/DSIZE);
-
-//     size_t oldsize = GET_SIZE(HDRP(ptr));
-//     if(oldsize == asize) return ptr;
-//     else if(oldsize > asize){
-//         PUT(HDRP(ptr), PACK(asize, 1));
-//         PUT(FTRP(ptr), PACK(asize, 1));
-//         PUT(HDRP(NEXT_BLKP(ptr)), PACK(oldsize - asize, 0));
-//         PUT(FTRP(NEXT_BLKP(ptr)), PACK(oldsize - asize, 0));
-//         coalesce(NEXT_BLKP(ptr));
-//         return ptr;
-//     }
-//     else{ // the case that asize > oldsize which means lacking of space, so we 
-//           // consider coalesce the next one if the next is free block 
-//         size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(ptr)));
-//         // here its a simulation of place()
-//         if(!next_alloc && GET_SIZE(HDRP(NEXT_BLKP(ptr))) + oldsize >= asize) {
-//             remove_from_free_list(NEXT_BLKP(ptr));
-//             size_t last = GET_SIZE(HDRP(NEXT_BLKP(ptr))) + oldsize - asize;
-//             PUT(HDRP(ptr), PACK(asize, 1));
-//             PUT(FTRP(ptr), PACK(asize, 1));
-//             if(last >= 2*DSIZE){ // don't forget to divide if possible
-//                 PUT(HDRP(NEXT_BLKP(ptr)), PACK(last, 0));
-//                 PUT(FTRP(NEXT_BLKP(ptr)), PACK(last, 0));
-
-//                 put_to_first(NEXT_BLKP(ptr));
-//             }
-//             return ptr;
-//         }
-//         else{ // concat the next free block is still imcompatible, then allocate
-//             char *newptr = mm_malloc(asize);
-//             if(newptr == NULL) return NULL;
-//             memcpy(newptr, ptr, oldsize - DSIZE);
-//             mm_free(ptr);
-//             return newptr;
-//         }
-//     }
-// }
 void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
@@ -371,19 +320,4 @@ void *mm_realloc(void *ptr, size_t size)
     // place(newptr, asize); // don't forget to fix the header and footer
     mm_free(oldptr);
     return newptr;    
-}
-
-
-int mm_check(char *function)
-{
-    printf("---cur function:%s empty blocks:\n",function);
-    char *tmpP = GET(root);
-    int count_empty_block = 0;
-    while(tmpP != NULL)
-    {
-        count_empty_block++;
-        printf("address：%x size:%d \n",tmpP,GET_SIZE(HDRP(tmpP)));
-        tmpP = GET(NEXT_FREE(tmpP));
-    }
-    printf("empty_block num: %d\n",count_empty_block);
 }
