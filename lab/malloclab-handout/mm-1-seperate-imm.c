@@ -59,9 +59,6 @@ team_t team = {
 #define NEXT_FREE(bp) ((char *)bp)
 #define PREV_FREE(bp) ((char *)bp + 1*WSIZE)
 
-// #define DEBUG 1 
-
-
 static void *extend_heap(size_t dwords);
 static void *coalesce(void *bp);
 static void *first_fit(size_t asize);
@@ -82,9 +79,9 @@ int mm_init(void)
         return -1;
     }
     PUT(headptr, 0);
-    PUT(headptr+1*WSIZE, 0);   // [0-16]  1~4 block
-    PUT(headptr+2*WSIZE, 0);   // (16-32]  4~8 block
-    PUT(headptr+3*WSIZE, 0);   // (32-64]   8~16 block
+    PUT(headptr+1*WSIZE, 0);   // [0-16]  0~2 dword
+    PUT(headptr+2*WSIZE, 0);   // (16-32]  2~4 dword
+    PUT(headptr+3*WSIZE, 0);   // (32-64]   4~8 dword
     PUT(headptr+4*WSIZE, 0);   // (64-128]   ...
     PUT(headptr+5*WSIZE, 0);   // (128-256]
     PUT(headptr+6*WSIZE, 0);   // (256-512]
@@ -136,9 +133,9 @@ void *mm_malloc(size_t size)
     /* Search the free list fot a fit */
     // printf("1\n");
     if ((bp = first_fit(asize)) != NULL) { // got 84 for first_fit and 65 for best_fit
-        printf("==========\n");
+        // printf("==========\n");
         place(bp, asize);
-        printf("----------\n");
+        // printf("----------\n");
         return bp;
     } 
     
@@ -162,7 +159,7 @@ static void *first_fit(size_t asize)
         // GET(root)->the first free, NEXT_FREE(bp) is an address 
         for (bp = GET(root); bp != NULL; bp = GET(NEXT_FREE(bp))) {
             if (GET_SIZE(HDRP(bp)) >= asize) {
-                printf("1\n");
+                // printf("1\n");
                 // printf("find the free block in %d\n", i);
                 return bp;
             }
@@ -197,11 +194,7 @@ static void *best_fit(size_t asize)
 
 static void place(void *bp, size_t asize)
 {
-    // printf("place\n");
-    // int i;
-    char *root;
     size_t csize = GET_SIZE(HDRP(bp));
-    root = get_idx_root(asize);  
     // 2*DSIZE-> Minimum block is 2*DSIZE = 16 byte, so if its larger then can 
     // be devided
     if ((csize - asize) >= (2*DSIZE)) {
@@ -219,7 +212,6 @@ static void place(void *bp, size_t asize)
         PUT(HDRP(bp), PACK(csize, 1));
         PUT(FTRP(bp), PACK(csize, 1));
     }
-    // printf("placed in %d\n", i);
 } 
 
 /*
@@ -234,7 +226,7 @@ void mm_free(void *ptr)
     PUT(FTRP(ptr), PACK(size, 0));
     PUT(NEXT_FREE(ptr), 0);
     PUT(PREV_FREE(ptr), 0);
-    // deferred coalesce or immediate coalesce
+    // immediate coalesce
     coalesce(ptr);  // a vital important step
 
 }
@@ -280,7 +272,7 @@ static void *coalesce(void *bp)
   */
 static void put_to_first(void *bp)
 {
-    size_t asize = GET_SIZE(bp);
+    size_t asize = GET_SIZE(HDRP(bp));
     char *root;
     char *next;
     root = get_idx_root(asize);
@@ -289,8 +281,8 @@ static void put_to_first(void *bp)
         PUT(PREV_FREE(next), bp);
     }
     PUT(NEXT_FREE(bp), next);
+    PUT(PREV_FREE(bp), 0);
     PUT(root, bp);
-    // printf("put to roor %d's first\n", i);
 }
 
  /*
@@ -301,8 +293,7 @@ static void remove_from_free_list(void *bp)
     char *prev;
     char *next;
     char *root;
-    size_t asize = GET_SIZE(bp);
-    int i;
+    size_t asize = GET_SIZE(HDRP(bp));
     prev = GET(PREV_FREE(bp)); // to get address
     next = GET(NEXT_FREE(bp));
     root = get_idx_root(asize);       
